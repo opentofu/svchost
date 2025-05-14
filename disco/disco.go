@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"net/url"
@@ -147,7 +146,6 @@ func (d *Disco) CredentialsForHost(hostname svchost.Hostname) (auth.HostCredenti
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if aliasedHost, aliasExists := d.aliases[hostname]; aliasExists {
-		log.Printf("[DEBUG] CredentialsForHost found alias %s for %s", hostname, aliasedHost)
 		hostname = aliasedHost
 	}
 	return d.credsSrc.ForHost(hostname)
@@ -184,7 +182,6 @@ func (d *Disco) ForceHostServices(hostname svchost.Hostname, services map[string
 // Alias accepts an alias and target Hostname. When service discovery is performed
 // or credentials are requested for the alias hostname, the target will be consulted instead.
 func (d *Disco) Alias(alias, target svchost.Hostname) {
-	log.Printf("[DEBUG] Service discovery for %s aliased as %s", target, alias)
 	d.mu.Lock()
 	d.aliases[alias] = target
 	d.mu.Unlock()
@@ -247,7 +244,6 @@ func (d *Disco) DiscoverServiceURL(hostname svchost.Hostname, serviceID string) 
 func (d *Disco) discover(hostname svchost.Hostname) (*Host, error) {
 	d.mu.Lock()
 	if aliasedHost, aliasExists := d.aliases[hostname]; aliasExists {
-		log.Printf("[DEBUG] Discover found alias %s for %s", hostname, aliasedHost)
 		hostname = aliasedHost
 	}
 	d.mu.Unlock()
@@ -268,14 +264,13 @@ func (d *Disco) discover(hostname svchost.Hostname) (*Host, error) {
 
 	creds, err := d.CredentialsForHost(hostname)
 	if err != nil {
-		log.Printf("[WARN] Failed to get credentials for %s: %s (ignoring)", hostname, err)
+		// If we fail to obtain credentials then we just treat it as anonymous
+		creds = nil
 	}
 	if creds != nil {
 		// Update the request to include credentials.
 		creds.PrepareRequest(req)
 	}
-
-	log.Printf("[DEBUG] Service discovery for %s at %s", hostname, discoURL)
 
 	resp, err := client.Do(req)
 	if err != nil {

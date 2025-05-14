@@ -6,7 +6,6 @@ package disco
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -132,8 +131,6 @@ func (h *Host) ServiceOAuthClient(id string) (*OAuthClient, error) {
 		// An absolutely infuriating legacy HCL ambiguity.
 		raw = v[0]
 	default:
-		// Debug message because raw Go types don't belong in our UI.
-		log.Printf("[DEBUG] The definition for %s has Go type %T", id, h.services[id])
 		return nil, fmt.Errorf("service %s must be declared with an object value in the service discovery document", id)
 	}
 
@@ -209,8 +206,6 @@ func (h *Host) ServiceOAuthClient(id string) (*OAuthClient, error) {
 				}
 				ports[i] = uint16(v)
 			default:
-				// Debug message because raw Go types don't belong in our UI.
-				log.Printf("[DEBUG] Port value %d has Go type %T", i, portsRaw[i])
 				return nil, invalidPortsErr
 			}
 		}
