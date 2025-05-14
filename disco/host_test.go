@@ -5,14 +5,9 @@
 package disco
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path"
-	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -24,7 +19,7 @@ func TestHostServiceURL(t *testing.T) {
 	host := Host{
 		discoURL: baseURL,
 		hostname: "test-server",
-		services: map[string]interface{}{
+		services: map[string]any{
 			"absolute.v1":         "http://example.net/foo/bar",
 			"absolutewithport.v1": "http://example.net:8080/foo/bar",
 			"relative.v1":         "./stu/",
@@ -80,95 +75,95 @@ func TestHostServiceOAuthClient(t *testing.T) {
 	host := Host{
 		discoURL: baseURL,
 		hostname: "test-server",
-		services: map[string]interface{}{
-			"explicitgranttype.v1": map[string]interface{}{
+		services: map[string]any{
+			"explicitgranttype.v1": map[string]any{
 				"client":      "explicitgranttype",
 				"authz":       "./authz",
 				"token":       "./token",
-				"grant_types": []interface{}{"authz_code", "password", "tbd"},
+				"grant_types": []any{"authz_code", "password", "tbd"},
 			},
-			"customports.v1": map[string]interface{}{
+			"customports.v1": map[string]any{
 				"client": "customports",
 				"authz":  "./authz",
 				"token":  "./token",
-				"ports":  []interface{}{1025, 1026},
+				"ports":  []any{1025, 1026},
 			},
-			"invalidports.v1": map[string]interface{}{
+			"invalidports.v1": map[string]any{
 				"client": "invalidports",
 				"authz":  "./authz",
 				"token":  "./token",
-				"ports":  []interface{}{1, 65535},
+				"ports":  []any{1, 65535},
 			},
-			"missingauthz.v1": map[string]interface{}{
+			"missingauthz.v1": map[string]any{
 				"client": "missingauthz",
 				"token":  "./token",
 			},
-			"missingtoken.v1": map[string]interface{}{
+			"missingtoken.v1": map[string]any{
 				"client": "missingtoken",
 				"authz":  "./authz",
 			},
-			"passwordmissingauthz.v1": map[string]interface{}{
+			"passwordmissingauthz.v1": map[string]any{
 				"client":      "passwordmissingauthz",
 				"token":       "./token",
-				"grant_types": []interface{}{"password"},
+				"grant_types": []any{"password"},
 			},
-			"absolute.v1": map[string]interface{}{
+			"absolute.v1": map[string]any{
 				"client": "absolute",
 				"authz":  "http://example.net/foo/authz",
 				"token":  "http://example.net/foo/token",
 			},
-			"absolutewithport.v1": map[string]interface{}{
+			"absolutewithport.v1": map[string]any{
 				"client": "absolutewithport",
 				"authz":  "http://example.net:8000/foo/authz",
 				"token":  "http://example.net:8000/foo/token",
 			},
-			"relative.v1": map[string]interface{}{
+			"relative.v1": map[string]any{
 				"client": "relative",
 				"authz":  "./authz",
 				"token":  "./token",
 			},
-			"rootrelative.v1": map[string]interface{}{
+			"rootrelative.v1": map[string]any{
 				"client": "rootrelative",
 				"authz":  "/authz",
 				"token":  "/token",
 			},
-			"protorelative.v1": map[string]interface{}{
+			"protorelative.v1": map[string]any{
 				"client": "protorelative",
 				"authz":  "//example.net/authz",
 				"token":  "//example.net/token",
 			},
-			"nothttp.v1": map[string]interface{}{
+			"nothttp.v1": map[string]any{
 				"client": "nothttp",
 				"authz":  "ftp://127.0.0.1/pub/authz",
 				"token":  "ftp://127.0.0.1/pub/token",
 			},
-			"invalidauthz.v1": map[string]interface{}{
+			"invalidauthz.v1": map[string]any{
 				"client": "invalidauthz",
 				"authz":  "***not A URL at all!:/<@@@@>***",
 				"token":  "/foo",
 			},
-			"invalidtoken.v1": map[string]interface{}{
+			"invalidtoken.v1": map[string]any{
 				"client": "invalidauthz",
 				"authz":  "/foo",
 				"token":  "***not A URL at all!:/<@@@@>***",
 			},
-			"scopesincluded.v1": map[string]interface{}{
+			"scopesincluded.v1": map[string]any{
 				"client": "scopesincluded",
 				"authz":  "/auth",
 				"token":  "/token",
-				"scopes": []interface{}{"app1.full_access", "app2.read_only"},
+				"scopes": []any{"app1.full_access", "app2.read_only"},
 			},
-			"scopesempty.v1": map[string]interface{}{
+			"scopesempty.v1": map[string]any{
 				"client": "scopesempty",
 				"authz":  "/auth",
 				"token":  "/token",
-				"scopes": []interface{}{},
+				"scopes": []any{},
 			},
-			"scopesbad.v1": map[string]interface{}{
+			"scopesbad.v1": map[string]any{
 				"client": "scopesbad",
 				"authz":  "/auth",
 				"token":  "/token",
-				"scopes": []interface{}{"app1.full_access", 42},
+				"scopes": []any{"app1.full_access", 42},
 			},
 		},
 	}
@@ -357,197 +352,6 @@ func TestHostServiceOAuthClient(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestVersionConstrains(t *testing.T) {
-	baseURL, _ := url.Parse("https://example.com/disco/foo.json")
-
-	t.Run("exact service version is provided", func(t *testing.T) {
-		portStr, cleanup := testVersionsServer(func(w http.ResponseWriter, r *http.Request) {
-			resp := []byte(`
-{
-	"service": "%s",
-	"product": "%s",
-	"minimum": "0.11.8",
-	"maximum": "0.12.0"
-}`)
-			// Add the requested service and product to the response.
-			service := path.Base(r.URL.Path)
-			product := r.URL.Query().Get("product")
-			resp = []byte(fmt.Sprintf(string(resp), service, product))
-
-			w.Header().Add("Content-Type", "application/json")
-			w.Header().Add("Content-Length", strconv.Itoa(len(resp)))
-			w.Write(resp)
-		})
-		defer cleanup()
-
-		host := Host{
-			discoURL:  baseURL,
-			hostname:  "test-server",
-			transport: httpTransport,
-			services: map[string]interface{}{
-				"thingy.v1":   "/api/v1/",
-				"thingy.v2":   "/api/v2/",
-				"versions.v1": "https://localhost" + portStr + "/v1/versions/",
-			},
-		}
-
-		expected := &Constraints{
-			Service: "thingy.v1",
-			Product: "opentofu",
-			Minimum: "0.11.8",
-			Maximum: "0.12.0",
-		}
-
-		actual, err := host.VersionConstraints("thingy.v1", "opentofu")
-		if err != nil {
-			t.Fatalf("unexpected version constraints error: %s", err)
-		}
-
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("expected %#v, got: %#v", expected, actual)
-		}
-	})
-
-	t.Run("service provided with different versions", func(t *testing.T) {
-		portStr, cleanup := testVersionsServer(func(w http.ResponseWriter, r *http.Request) {
-			resp := []byte(`
-{
-	"service": "%s",
-	"product": "%s",
-	"minimum": "0.11.8",
-	"maximum": "0.12.0"
-}`)
-			// Add the requested service and product to the response.
-			service := path.Base(r.URL.Path)
-			product := r.URL.Query().Get("product")
-			resp = []byte(fmt.Sprintf(string(resp), service, product))
-
-			w.Header().Add("Content-Type", "application/json")
-			w.Header().Add("Content-Length", strconv.Itoa(len(resp)))
-			w.Write(resp)
-		})
-		defer cleanup()
-
-		host := Host{
-			discoURL:  baseURL,
-			hostname:  "test-server",
-			transport: httpTransport,
-			services: map[string]interface{}{
-				"thingy.v2":   "/api/v2/",
-				"thingy.v3":   "/api/v3/",
-				"versions.v1": "https://localhost" + portStr + "/v1/versions/",
-			},
-		}
-
-		expected := &Constraints{
-			Service: "thingy.v3",
-			Product: "opentofu",
-			Minimum: "0.11.8",
-			Maximum: "0.12.0",
-		}
-
-		actual, err := host.VersionConstraints("thingy.v1", "opentofu")
-		if err != nil {
-			t.Fatalf("unexpected version constraints error: %s", err)
-		}
-
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("expected %#v, got: %#v", expected, actual)
-		}
-	})
-
-	t.Run("service not provided", func(t *testing.T) {
-		host := Host{
-			discoURL:  baseURL,
-			hostname:  "test-server",
-			transport: httpTransport,
-			services: map[string]interface{}{
-				"versions.v1": "https://localhost/v1/versions/",
-			},
-		}
-
-		_, err := host.VersionConstraints("thingy.v1", "opentofu")
-		if _, ok := err.(*ErrServiceNotProvided); !ok {
-			t.Fatalf("expected service not provided error, got: %v", err)
-		}
-	})
-
-	t.Run("versions service returns a 404", func(t *testing.T) {
-		portStr, cleanup := testVersionsServer(nil)
-		defer cleanup()
-
-		host := Host{
-			discoURL:  baseURL,
-			hostname:  "test-server",
-			transport: httpTransport,
-			services: map[string]interface{}{
-				"thingy.v1":   "/api/v1/",
-				"versions.v1": "https://localhost" + portStr + "/v1/non-existent/",
-			},
-		}
-
-		_, err := host.VersionConstraints("thingy.v1", "opentofu")
-		if _, ok := err.(*ErrNoVersionConstraints); !ok {
-			t.Fatalf("expected service not provided error, got: %v", err)
-		}
-	})
-
-	t.Run("checkpoint is disabled", func(t *testing.T) {
-		if err := os.Setenv("CHECKPOINT_DISABLE", "1"); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		defer os.Unsetenv("CHECKPOINT_DISABLE")
-
-		host := Host{
-			discoURL:  baseURL,
-			hostname:  "test-server",
-			transport: httpTransport,
-			services: map[string]interface{}{
-				"thingy.v1":   "/api/v1/",
-				"versions.v1": "https://localhost/v1/versions/",
-			},
-		}
-
-		_, err := host.VersionConstraints("thingy.v1", "opentofu")
-		if _, ok := err.(*ErrNoVersionConstraints); !ok {
-			t.Fatalf("expected service not provided error, got: %v", err)
-		}
-	})
-
-	t.Run("versions service not discovered", func(t *testing.T) {
-		host := Host{
-			discoURL:  baseURL,
-			hostname:  "test-server",
-			transport: httpTransport,
-			services: map[string]interface{}{
-				"thingy.v1": "/api/v1/",
-			},
-		}
-
-		_, err := host.VersionConstraints("thingy.v1", "opentofu")
-		if _, ok := err.(*ErrServiceNotProvided); !ok {
-			t.Fatalf("expected service not provided error, got: %v", err)
-		}
-	})
-
-	t.Run("versions service version not discovered", func(t *testing.T) {
-		host := Host{
-			discoURL:  baseURL,
-			hostname:  "test-server",
-			transport: httpTransport,
-			services: map[string]interface{}{
-				"thingy.v1":   "/api/v1/",
-				"versions.v2": "https://localhost/v2/versions/",
-			},
-		}
-
-		_, err := host.VersionConstraints("thingy.v1", "opentofu")
-		if _, ok := err.(*ErrVersionNotSupported); !ok {
-			t.Fatalf("expected service not provided error, got: %v", err)
-		}
-	})
 }
 
 func testVersionsServer(h func(w http.ResponseWriter, r *http.Request)) (portStr string, cleanup func()) {

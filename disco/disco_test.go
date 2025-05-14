@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -18,15 +17,13 @@ import (
 	"github.com/opentofu/svchost/auth"
 )
 
-func TestMain(m *testing.M) {
-	// During all tests we override the HTTP transport we use for discovery
-	// so it'll tolerate the locally-generated TLS certificates we use
-	// for test URLs.
-	httpTransport = &http.Transport{
+// During tests we override the HTTP transport we use for discovery
+// so it'll tolerate the locally-generated TLS certificates we use
+// for test URLs.
+var testClient = &http.Client{
+	Transport: &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	os.Exit(m.Run())
+	},
 }
 
 func TestDiscover(t *testing.T) {
@@ -50,7 +47,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		discovered, err := d.Discover(host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
@@ -92,7 +91,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		discovered, err := d.Discover(host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
@@ -126,7 +127,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]auth.HostCredentials{
 			host: auth.HostCredentialsToken("abc123"),
 		}))
@@ -136,12 +139,14 @@ func TestDiscover(t *testing.T) {
 		}
 	})
 	t.Run("forced services override", func(t *testing.T) {
-		forced := map[string]interface{}{
+		forced := map[string]any{
 			"thingy.v1": "http://example.net/foo",
 			"wotsit.v2": "/foo",
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		d.ForceHostServices(svchost.Hostname("example.com"), forced)
 
 		givenHost := "example.com"
@@ -193,7 +198,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		discovered, err := d.Discover(host)
 		if err == nil {
 			t.Fatalf("expected a discovery error")
@@ -218,7 +225,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		discovered, err := d.Discover(host)
 		if err == nil {
 			t.Fatalf("expected a discovery error")
@@ -247,7 +256,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		discovered, err := d.Discover(host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
@@ -269,7 +280,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		discovered, err := d.Discover(host)
 
 		if err != nil {
@@ -296,13 +309,14 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		localTestClient := *testClient // shallow copy
+		localTestClient.Transport = &http.Transport{
+			ResponseHeaderTimeout: 10 * time.Millisecond,
+		}
+		d := New(DiscoOptions{
+			HTTPClient: &localTestClient,
+		})
 
-		transport := d.Transport.(*http.Transport)
-
-		origTimeout := transport.ResponseHeaderTimeout
-		transport.ResponseHeaderTimeout = 10 * time.Millisecond
-		defer func() { transport.ResponseHeaderTimeout = origTimeout }()
 		discovered, err := d.Discover(host)
 
 		// Verify the error is an ErrServiceDiscoveryNetworkRequest
@@ -338,7 +352,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		discovered, err := d.Discover(host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
@@ -388,7 +404,9 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("alias hostname is invalid: %s", err)
 		}
 
-		d := New()
+		d := New(DiscoOptions{
+			HTTPClient: testClient,
+		})
 		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]auth.HostCredentials{
 			target: auth.HostCredentialsToken("hunter2"),
 		}))

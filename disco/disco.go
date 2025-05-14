@@ -31,18 +31,17 @@ const (
 	// vendors can support both products simultaneously.
 	discoPath = "/.well-known/terraform.json"
 
-	// Arbitrary-but-small number to prevent runaway redirect loops.
+	// Arbitrary-but-small number to prevent runaway redirect loops. This
+	// is used only when the caller doesn't provide their own HTTP client.
 	maxRedirects = 3
 
 	// Arbitrary-but-small time limit to prevent UI "hangs" during discovery.
+	// This is used only when the caller doesn't provide their own HTTP client.
 	discoTimeout = 11 * time.Second
 
 	// 1MB - to prevent abusive services from using loads of our memory.
 	maxDiscoDocBytes = 1 * 1024 * 1024
 )
-
-// httpTransport is overridden during tests, to skip TLS verification.
-var httpTransport = defaultHTTPTransport()
 
 // Disco is the main type in this package, which allows discovery on given
 // hostnames and caches the results by hostname to avoid repeated requests
@@ -55,8 +54,7 @@ type Disco struct {
 
 	credsSrc auth.CredentialsSource
 
-	// Transport is a custom http.RoundTripper to use.
-	Transport http.RoundTripper
+	httpClient *http.Client
 }
 
 // ErrServiceDiscoveryNetworkRequest represents the error that occurs when
@@ -70,34 +68,60 @@ func (e ErrServiceDiscoveryNetworkRequest) Error() string {
 	return wrappedError.Error()
 }
 
-// New returns a new initialized discovery object.
-func New() *Disco {
-	return NewWithCredentialsSource(nil)
-}
-
-// NewWithCredentialsSource returns a new discovery object initialized with
-// the given credentials source.
-func NewWithCredentialsSource(credsSrc auth.CredentialsSource) *Disco {
-	return &Disco{
-		aliases:   make(map[svchost.Hostname]svchost.Hostname),
-		hostCache: make(map[svchost.Hostname]*Host),
-		credsSrc:  credsSrc,
-		Transport: httpTransport,
-	}
-}
-
-func (d *Disco) SetUserAgent(uaString string) {
-	d.Transport = &userAgentRoundTripper{
-		innerRt:   d.Transport,
-		userAgent: uaString,
-	}
-}
-
-// SetCredentialsSource provides a credentials source that will be used to
-// add credentials to outgoing discovery requests, where available.
+// Unwrap returns another [`error`] value representing the underlying problem.
 //
-// If this method is never called, no outgoing discovery requests will have
-// credentials.
+// This is intended for use with the standard library errors package, and its
+// "Is", "As", and "Unwrap" functions.
+func (e ErrServiceDiscoveryNetworkRequest) Unwrap() error {
+	return e.err
+}
+
+// New returns a new initialized discovery object initialized with the
+// given HTTP client and credentials source.
+//
+// credsSrc may be nil, in which case service discovery requests to all hosts
+// will be made anonymously.
+func New(opts DiscoOptions) *Disco {
+	httpClient := opts.HTTPClient
+	creds := opts.Credentials
+
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: discoTimeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) > maxRedirects {
+					return errors.New("too many redirects") // this error will never actually be seen
+				}
+				return nil
+			},
+		}
+	}
+
+	return &Disco{
+		aliases:    make(map[svchost.Hostname]svchost.Hostname),
+		hostCache:  make(map[svchost.Hostname]*Host),
+		credsSrc:   creds,
+		httpClient: httpClient,
+	}
+}
+
+type DiscoOptions struct {
+	// HTTPClient is the HTTP client to use when making requests.
+	//
+	// If this is nil then [New] will construct a new client internally,
+	// whose specific behavior is unspecified and subject to change in
+	// future versions of this library.
+	HTTPClient *http.Client
+
+	// Credentials provides credentials to include in service discovery
+	// requests.
+	//
+	// If this is nil then requests to all hosts are made anonymously.
+	Credentials auth.CredentialsSource
+}
+
+// SetCredentialsSource changes the credentials source that will be used to
+// add credentials to outgoing discovery requests, where available.
 func (d *Disco) SetCredentialsSource(src auth.CredentialsSource) {
 	d.credsSrc = src
 }
@@ -139,9 +163,9 @@ func (d *Disco) CredentialsForHost(hostname svchost.Hostname) (auth.HostCredenti
 // discovery, yielding the same results as if the given map were published
 // at the host's default discovery URL, though using absolute URLs is strongly
 // recommended to make the configured behavior more explicit.
-func (d *Disco) ForceHostServices(hostname svchost.Hostname, services map[string]interface{}) {
+func (d *Disco) ForceHostServices(hostname svchost.Hostname, services map[string]any) {
 	if services == nil {
-		services = map[string]interface{}{}
+		services = map[string]any{}
 	}
 
 	d.mu.Lock()
@@ -151,9 +175,8 @@ func (d *Disco) ForceHostServices(hostname svchost.Hostname, services map[string
 			Host:   string(hostname),
 			Path:   discoPath,
 		},
-		hostname:  hostname.ForDisplay(),
-		services:  services,
-		transport: d.Transport,
+		hostname: hostname.ForDisplay(),
+		services: services,
 	}
 	d.mu.Unlock()
 }
@@ -235,19 +258,7 @@ func (d *Disco) discover(hostname svchost.Hostname) (*Host, error) {
 		Path:   discoPath,
 	}
 
-	client := &http.Client{
-		Transport: d.Transport,
-		Timeout:   discoTimeout,
-
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			log.Printf("[DEBUG] Service discovery redirected to %s", req.URL)
-			if len(via) > maxRedirects {
-				return errors.New("too many redirects") // this error will never actually be seen
-			}
-			return nil
-		},
-	}
-
+	client := d.httpClient
 	req := &http.Request{
 		Header: make(http.Header),
 		Method: "GET",
@@ -275,9 +286,8 @@ func (d *Disco) discover(hostname svchost.Hostname) (*Host, error) {
 	host := &Host{
 		// Use the discovery URL from resp.Request in
 		// case the client followed any redirects.
-		discoURL:  resp.Request.URL,
-		hostname:  hostname.ForDisplay(),
-		transport: d.Transport,
+		discoURL: resp.Request.URL,
+		hostname: hostname.ForDisplay(),
 	}
 
 	// Return the host without any services.
@@ -317,7 +327,7 @@ func (d *Disco) discover(hostname svchost.Hostname) (*Host, error) {
 		return nil, fmt.Errorf("error reading discovery document body: %v", err)
 	}
 
-	var services map[string]interface{}
+	var services map[string]any
 	err = json.Unmarshal(servicesBytes, &services)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode discovery document as a JSON object: %v", err)

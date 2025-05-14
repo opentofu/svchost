@@ -1,38 +1,22 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package disco
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/hashicorp/go-version"
 )
-
-const versionServiceID = "versions.v1"
 
 // Host represents a service discovered host.
 type Host struct {
-	discoURL  *url.URL
-	hostname  string
-	services  map[string]interface{}
-	transport http.RoundTripper
-}
-
-// Constraints represents the version constraints of a service.
-type Constraints struct {
-	Service   string   `json:"service"`
-	Product   string   `json:"product"`
-	Minimum   string   `json:"minimum"`
-	Maximum   string   `json:"maximum"`
-	Excluding []string `json:"excluding"`
+	discoURL *url.URL
+	hostname string
+	services map[string]any
 }
 
 // ErrServiceNotProvided is returned when the service is not provided.
@@ -53,29 +37,15 @@ func (e *ErrServiceNotProvided) Error() string {
 type ErrVersionNotSupported struct {
 	hostname string
 	service  string
-	version  string
+	version  uint64
 }
 
 // Error returns a customized error message.
 func (e *ErrVersionNotSupported) Error() string {
 	if e.hostname == "" {
-		return fmt.Sprintf("host does not support %s version %s", e.service, e.version)
+		return fmt.Sprintf("host does not support %s version %d", e.service, e.version)
 	}
-	return fmt.Sprintf("host %s does not support %s version %s", e.hostname, e.service, e.version)
-}
-
-// ErrNoVersionConstraints is returned when checkpoint was disabled
-// or the endpoint to query for version constraints was unavailable.
-type ErrNoVersionConstraints struct {
-	disabled bool
-}
-
-// Error returns a customized error message.
-func (e *ErrNoVersionConstraints) Error() string {
-	if e.disabled {
-		return "checkpoint disabled"
-	}
-	return "unable to contact versions service"
+	return fmt.Sprintf("host %s does not support %s version %d", e.hostname, e.service, e.version)
 }
 
 // ServiceURL returns the URL associated with the given service identifier,
@@ -84,14 +54,14 @@ func (e *ErrNoVersionConstraints) Error() string {
 // A non-nil result is always an absolute URL with a scheme of either HTTPS
 // or HTTP.
 func (h *Host) ServiceURL(id string) (*url.URL, error) {
-	svc, ver, err := parseServiceID(id)
+	svcName, version, err := parseServiceID(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// No services supported for an empty Host.
 	if h == nil || h.services == nil {
-		return nil, &ErrServiceNotProvided{service: svc}
+		return nil, &ErrServiceNotProvided{service: svcName}
 	}
 
 	urlStr, ok := h.services[id].(string)
@@ -99,17 +69,17 @@ func (h *Host) ServiceURL(id string) (*url.URL, error) {
 		// See if we have a matching service as that would indicate
 		// the service is supported, but not the requested version.
 		for serviceID := range h.services {
-			if strings.HasPrefix(serviceID, svc+".") {
+			if strings.HasPrefix(serviceID, svcName+".") {
 				return nil, &ErrVersionNotSupported{
 					hostname: h.hostname,
-					service:  svc,
-					version:  ver.Original(),
+					service:  svcName,
+					version:  version,
 				}
 			}
 		}
 
 		// No discovered services match the requested service.
-		return nil, &ErrServiceNotProvided{hostname: h.hostname, service: svc}
+		return nil, &ErrServiceNotProvided{hostname: h.hostname, service: svcName}
 	}
 
 	u, err := h.parseURL(urlStr)
@@ -127,38 +97,38 @@ func (h *Host) ServiceURL(id string) (*url.URL, error) {
 // a full OAuth2 client definition rather than just a URL. Use this only
 // for services whose specification calls for this sort of definition.
 func (h *Host) ServiceOAuthClient(id string) (*OAuthClient, error) {
-	svc, ver, err := parseServiceID(id)
+	serviceName, version, err := parseServiceID(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// No services supported for an empty Host.
 	if h == nil || h.services == nil {
-		return nil, &ErrServiceNotProvided{service: svc}
+		return nil, &ErrServiceNotProvided{service: serviceName}
 	}
 
 	if _, ok := h.services[id]; !ok {
 		// See if we have a matching service as that would indicate
 		// the service is supported, but not the requested version.
 		for serviceID := range h.services {
-			if strings.HasPrefix(serviceID, svc+".") {
+			if strings.HasPrefix(serviceID, serviceName+".") {
 				return nil, &ErrVersionNotSupported{
 					hostname: h.hostname,
-					service:  svc,
-					version:  ver.Original(),
+					service:  serviceName,
+					version:  version,
 				}
 			}
 		}
 
 		// No discovered services match the requested service.
-		return nil, &ErrServiceNotProvided{hostname: h.hostname, service: svc}
+		return nil, &ErrServiceNotProvided{hostname: h.hostname, service: serviceName}
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	switch v := h.services[id].(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		raw = v // Great!
-	case []map[string]interface{}:
+	case []map[string]any:
 		// An absolutely infuriating legacy HCL ambiguity.
 		raw = v[0]
 	default:
@@ -170,7 +140,7 @@ func (h *Host) ServiceOAuthClient(id string) (*OAuthClient, error) {
 	var grantTypes OAuthGrantTypeSet
 	//nolint:nestif
 	if rawGTs, ok := raw["grant_types"]; ok {
-		if gts, ok := rawGTs.([]interface{}); ok {
+		if gts, ok := rawGTs.([]any); ok {
 			var kws []string
 			for _, gtI := range gts {
 				gt, ok := gtI.(string)
@@ -216,7 +186,7 @@ func (h *Host) ServiceOAuthClient(id string) (*OAuthClient, error) {
 		return nil, fmt.Errorf("service %s definition is missing required property \"token\"", id)
 	}
 	//nolint:nestif
-	if portsRaw, ok := raw["ports"].([]interface{}); ok {
+	if portsRaw, ok := raw["ports"].([]any); ok {
 		if len(portsRaw) != 2 {
 			return nil, fmt.Errorf("invalid \"ports\" definition for service %s: must be a two-element array", id)
 		}
@@ -255,7 +225,7 @@ func (h *Host) ServiceOAuthClient(id string) (*OAuthClient, error) {
 		ret.MinPort = 1024
 		ret.MaxPort = 65535
 	}
-	if scopesRaw, ok := raw["scopes"].([]interface{}); ok {
+	if scopesRaw, ok := raw["scopes"].([]any); ok {
 		var scopes []string
 		for _, scopeI := range scopesRaw {
 			scope, ok := scopeI.(string)
@@ -294,130 +264,18 @@ func (h *Host) parseURL(urlStr string) (*url.URL, error) {
 	return u, nil
 }
 
-// VersionConstraints returns the contraints for a given service identifier
-// (which should be of the form "servicename.vN") and product.
-//
-// When an exact (service and version) match is found, the constraints for
-// that service are returned.
-//
-// When the requested version is not provided but the service is, we will
-// search for all alternative versions. If multiple alternative versions
-// are found, the contrains of the latest available version are returned.
-//
-// When a service is not provided at all an error will be returned instead.
-//
-// When checkpoint is disabled or when a 404 is returned after making the
-// HTTP call, an ErrNoVersionConstraints error will be returned.
-func (h *Host) VersionConstraints(id, product string) (*Constraints, error) {
-	svc, _, err := parseServiceID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return early if checkpoint is disabled.
-	if disabled := os.Getenv("CHECKPOINT_DISABLE"); disabled != "" {
-		return nil, &ErrNoVersionConstraints{disabled: true}
-	}
-
-	// No services supported for an empty Host.
-	if h == nil || h.services == nil {
-		return nil, &ErrServiceNotProvided{service: svc}
-	}
-
-	// Try to get the service URL for the version service and
-	// return early if the service isn't provided by the host.
-	u, err := h.ServiceURL(versionServiceID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if we have an exact (service and version) match.
-	//nolint:nestif
-	if _, ok := h.services[id].(string); !ok {
-		// If we don't have an exact match, we search for all matching
-		// services and then use the service ID of the latest version.
-		var services []string
-		for serviceID := range h.services {
-			if strings.HasPrefix(serviceID, svc+".") {
-				services = append(services, serviceID)
-			}
-		}
-
-		if len(services) == 0 {
-			// No discovered services match the requested service.
-			return nil, &ErrServiceNotProvided{hostname: h.hostname, service: svc}
-		}
-
-		// Set id to the latest service ID we found.
-		var latest *version.Version
-		for _, serviceID := range services {
-			if _, ver, err := parseServiceID(serviceID); err == nil {
-				if latest == nil || latest.LessThan(ver) {
-					id = serviceID
-					latest = ver
-				}
-			}
-		}
-	}
-
-	// Set a default timeout of 1 sec for the versions request (in milliseconds)
-	timeout := 1000
-	if v, err := strconv.Atoi(os.Getenv("CHECKPOINT_TIMEOUT")); err == nil {
-		timeout = v
-	}
-
-	client := &http.Client{
-		Transport: h.transport,
-		Timeout:   time.Duration(timeout) * time.Millisecond,
-	}
-
-	// Prepare the service URL by setting the service and product.
-	v := u.Query()
-	v.Set("product", product)
-	u.Path += id
-	u.RawQuery = v.Encode()
-
-	// Create a new request.
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create version constraints request: %v", err)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	log.Printf("[DEBUG] Retrieve version constraints for service %s and product %s", id, product)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to request version constraints: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 404 {
-		return nil, &ErrNoVersionConstraints{disabled: false}
-	}
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("failed to request version constraints: %s", resp.Status)
-	}
-
-	// Parse the constraints from the response body.
-	result := &Constraints{}
-	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-		return nil, fmt.Errorf("Error parsing version constraints: %v", err)
-	}
-
-	return result, nil
-}
-
-func parseServiceID(id string) (string, *version.Version, error) {
+func parseServiceID(id string) (string, uint64, error) {
 	parts := strings.SplitN(id, ".", 2)
 	if len(parts) != 2 {
-		return "", nil, fmt.Errorf("invalid service ID format (i.e. service.vN): %s", id)
+		return "", 0, fmt.Errorf("invalid service ID format (i.e. service.vN): %s", id)
 	}
 
-	parsedVersion, err := version.NewVersion(parts[1])
+	if !strings.HasPrefix(parts[1], "v") {
+		return "", 0, fmt.Errorf("invalid service version: must be \"v\" followed by an integer major version number")
+	}
+	parsedVersion, err := strconv.ParseUint(parts[1][1:], 10, 64)
 	if err != nil {
-		return "", nil, fmt.Errorf("invalid service version: %v", err)
+		return "", 0, fmt.Errorf("invalid service version: %v", err)
 	}
 
 	return parts[0], parsedVersion, nil
