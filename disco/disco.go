@@ -67,7 +67,7 @@ func (e ErrServiceDiscoveryNetworkRequest) Error() string {
 	return wrappedError.Error()
 }
 
-// Unwrap returns another [`error`] value representing the underlying problem.
+// Unwrap returns another [error] value representing the underlying problem.
 //
 // This is intended for use with the standard library errors package, and its
 // "Is", "As", and "Unwrap" functions.
@@ -76,16 +76,26 @@ func (e ErrServiceDiscoveryNetworkRequest) Unwrap() error {
 }
 
 // New returns a new initialized discovery object initialized with the
-// given HTTP client and credentials source.
+// given options.
 //
-// credsSrc may be nil, in which case service discovery requests to all hosts
-// will be made anonymously.
-func New(opts DiscoOptions) *Disco {
-	httpClient := opts.HTTPClient
-	creds := opts.Credentials
+// Use [WithHTTPClient] to specify an HTTP client to use when making discovery
+// requests. If no client is provided then one will be created automatically,
+// but the details of its behavior are subject to change in future versions.
+//
+// Use [WithCredentials] to specify an [svcauth.CredentialsSource] that can
+// provide credentials to use when performing service discovery. If none is
+// provided then all requests are made anonymously.
+func New(options ...DiscoOption) *Disco {
+	ret := &Disco{
+		aliases:   make(map[svchost.Hostname]svchost.Hostname),
+		hostCache: make(map[svchost.Hostname]*Host),
+	}
+	for _, opt := range options {
+		opt.applyOption(ret)
+	}
 
-	if httpClient == nil {
-		httpClient = &http.Client{
+	if ret.httpClient == nil {
+		ret.httpClient = &http.Client{
 			Timeout: discoTimeout,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) > maxRedirects {
@@ -96,27 +106,7 @@ func New(opts DiscoOptions) *Disco {
 		}
 	}
 
-	return &Disco{
-		aliases:    make(map[svchost.Hostname]svchost.Hostname),
-		hostCache:  make(map[svchost.Hostname]*Host),
-		credsSrc:   creds,
-		httpClient: httpClient,
-	}
-}
-
-type DiscoOptions struct {
-	// HTTPClient is the HTTP client to use when making requests.
-	//
-	// If this is nil then [New] will construct a new client internally,
-	// whose specific behavior is unspecified and subject to change in
-	// future versions of this library.
-	HTTPClient *http.Client
-
-	// Credentials provides credentials to include in service discovery
-	// requests.
-	//
-	// If this is nil then requests to all hosts are made anonymously.
-	Credentials svcauth.CredentialsSource
+	return ret
 }
 
 // SetCredentialsSource changes the credentials source that will be used to
