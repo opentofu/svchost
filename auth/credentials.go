@@ -7,7 +7,6 @@
 package auth
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -79,22 +78,6 @@ type HostCredentials interface {
 	// Implementers must not abuse this by modifying the request in ways
 	// that are unrelated to authentication.
 	PrepareRequest(req *http.Request)
-
-	// ClientCertificate can be called when making a request to a TLS (https)
-	// server and the server requests a certificate to authenticate
-	// the client.
-	//
-	// If this returns an error then the TLS handshake must be aborted
-	// and that error returned. Otherwise this must return a non-nil
-	// [*tls.Certificate]. Returning an empty certificate is allowed, in
-	// which case no certificate is to be sent but the server may not
-	// accept that and so may abort the TLS handshake itself.
-	//
-	// This function may be called multiple times for the same connection
-	// if renegotiation occurs or if the connection is using TLS 1.3.
-	//
-	// The returned certificate must not be modified.
-	ClientCertificate(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 }
 
 // NewHostCredentials represents new credentials that could be saved in
