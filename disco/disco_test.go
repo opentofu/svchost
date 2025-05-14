@@ -48,7 +48,7 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New(WithHTTPClient(testClient))
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
 		}
@@ -90,7 +90,7 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New(WithHTTPClient(testClient))
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
 		}
@@ -127,7 +127,7 @@ func TestDiscover(t *testing.T) {
 		d.SetCredentialsSource(svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
 			host: svcauth.HostCredentialsToken("abc123"),
 		}))
-		d.Discover(host)
+		d.Discover(t.Context(), host)
 		if got, want := authHeaderText, "Bearer abc123"; got != want {
 			t.Fatalf("wrong Authorization header\ngot:  %s\nwant: %s", got, want)
 		}
@@ -147,7 +147,7 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("test server hostname is invalid: %s", err)
 		}
 
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
 		}
@@ -191,7 +191,7 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New(WithHTTPClient(testClient))
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 		if err == nil {
 			t.Fatalf("expected a discovery error")
 		}
@@ -216,7 +216,7 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New(WithHTTPClient(testClient))
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 		if err == nil {
 			t.Fatalf("expected a discovery error")
 		}
@@ -245,7 +245,7 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New(WithHTTPClient(testClient))
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
 		}
@@ -267,7 +267,7 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New(WithHTTPClient(testClient))
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
@@ -299,7 +299,7 @@ func TestDiscover(t *testing.T) {
 		}
 		d := New(WithHTTPClient(&localTestClient))
 
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 
 		// Verify the error is an ErrServiceDiscoveryNetworkRequest
 		_, isDiscoError := err.(ErrServiceDiscoveryNetworkRequest)
@@ -335,7 +335,7 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New(WithHTTPClient(testClient))
-		discovered, err := d.Discover(host)
+		discovered, err := d.Discover(t.Context(), host)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
 		}
@@ -390,7 +390,7 @@ func TestDiscover(t *testing.T) {
 		}))
 		d.Alias(alias, target)
 
-		discovered, err := d.Discover(alias)
+		discovered, err := d.Discover(t.Context(), alias)
 		if err != nil {
 			t.Fatalf("unexpected discovery error: %s", err)
 		}
@@ -406,7 +406,7 @@ func TestDiscover(t *testing.T) {
 			t.Fatalf("wrong result %q; want %q", got, want)
 		}
 
-		aliasCreds, err := d.CredentialsForHost(alias)
+		aliasCreds, err := d.CredentialsForHost(t.Context(), alias)
 		if err != nil {
 			t.Fatalf("unexpected credentials error: %s", err)
 		}
@@ -421,7 +421,7 @@ func TestDiscover(t *testing.T) {
 
 		d.ForgetAlias(alias)
 
-		discovered, err = d.Discover(alias)
+		discovered, err = d.Discover(t.Context(), alias)
 		if err == nil {
 			t.Error("expected error, got none")
 		}

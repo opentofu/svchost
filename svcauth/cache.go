@@ -5,6 +5,7 @@
 package svcauth
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -42,7 +43,7 @@ type cachingCredentialsSource struct {
 //
 // No cache entry is created if the wrapped source returns an error, to allow
 // the caller to retry the failing operation.
-func (s *cachingCredentialsSource) ForHost(host svchost.Hostname) (HostCredentials, error) {
+func (s *cachingCredentialsSource) ForHost(ctx context.Context, host svchost.Hostname) (HostCredentials, error) {
 	s.mu.Lock()
 	if cache, cached := s.cache[host]; cached {
 		s.mu.Unlock()
@@ -50,7 +51,7 @@ func (s *cachingCredentialsSource) ForHost(host svchost.Hostname) (HostCredentia
 	}
 	s.mu.Unlock()
 
-	result, err := s.source.ForHost(host)
+	result, err := s.source.ForHost(ctx, host)
 	if err != nil {
 		return result, err
 	}
@@ -61,7 +62,7 @@ func (s *cachingCredentialsSource) ForHost(host svchost.Hostname) (HostCredentia
 	return result, nil
 }
 
-func (s *cachingCredentialsSource) StoreForHost(host svchost.Hostname, credentials NewHostCredentials) error {
+func (s *cachingCredentialsSource) StoreForHost(ctx context.Context, host svchost.Hostname, credentials NewHostCredentials) error {
 	// We'll delete the cache entry even if the store fails, since that just
 	// means that the next read will go to the real store and get a chance to
 	// see which object (old or new) is actually present.
@@ -73,10 +74,10 @@ func (s *cachingCredentialsSource) StoreForHost(host svchost.Hostname, credentia
 	if !ok {
 		return fmt.Errorf("no credentials store is available")
 	}
-	return store.StoreForHost(host, credentials)
+	return store.StoreForHost(ctx, host, credentials)
 }
 
-func (s *cachingCredentialsSource) ForgetForHost(host svchost.Hostname) error {
+func (s *cachingCredentialsSource) ForgetForHost(ctx context.Context, host svchost.Hostname) error {
 	// We'll delete the cache entry even if the store fails, since that just
 	// means that the next read will go to the real store and get a chance to
 	// see if the object is still present.
@@ -88,5 +89,5 @@ func (s *cachingCredentialsSource) ForgetForHost(host svchost.Hostname) error {
 	if !ok {
 		return fmt.Errorf("no credentials store is available")
 	}
-	return store.ForgetForHost(host)
+	return store.ForgetForHost(ctx, host)
 }

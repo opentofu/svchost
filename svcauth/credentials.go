@@ -7,6 +7,7 @@
 package svcauth
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -44,7 +45,7 @@ type CredentialsSource interface {
 	//
 	// If an error is returned, progress through a list of CredentialsSources
 	// is halted and the error is returned to the user.
-	ForHost(host svchost.Hostname) (HostCredentials, error)
+	ForHost(ctx context.Context, host svchost.Hostname) (HostCredentials, error)
 }
 
 // CredentialsStore is an extension of [CredentialsSource] that also allows
@@ -58,12 +59,12 @@ type CredentialsStore interface {
 	// If credentials are already stored for the given host, it will try to
 	// replace those credentials but may produce an error if such replacement
 	// is not possible.
-	StoreForHost(host svchost.Hostname, credentials NewHostCredentials) error
+	StoreForHost(ctx context.Context, host svchost.Hostname, credentials NewHostCredentials) error
 
 	// ForgetForHost discards any stored credentials for the given host. It
 	// does nothing and returns successfully if no credentials are saved
 	// for that host.
-	ForgetForHost(host svchost.Hostname) error
+	ForgetForHost(ctx context.Context, host svchost.Hostname) error
 }
 
 // HostCredentials represents a single set of credentials for a particular
@@ -98,9 +99,9 @@ type NewHostCredentials interface {
 //
 // If any source returns either a non-nil HostCredentials or a non-nil error
 // then this result is returned. Otherwise, the result is nil, nil.
-func (c Credentials) ForHost(host svchost.Hostname) (HostCredentials, error) {
+func (c Credentials) ForHost(ctx context.Context, host svchost.Hostname) (HostCredentials, error) {
 	for _, source := range c {
-		creds, err := source.ForHost(host)
+		creds, err := source.ForHost(ctx, host)
 		if creds != nil || err != nil {
 			return creds, err
 		}
@@ -111,22 +112,22 @@ func (c Credentials) ForHost(host svchost.Hostname) (HostCredentials, error) {
 // StoreForHost passes the given arguments to the same operation on the
 // first CredentialsSource in the receiver, or returns an error if the
 // first source does not implement [CredentialsStore].
-func (c Credentials) StoreForHost(host svchost.Hostname, credentials NewHostCredentials) error {
+func (c Credentials) StoreForHost(ctx context.Context, host svchost.Hostname, credentials NewHostCredentials) error {
 	store := c.Store()
 	if store == nil {
 		return fmt.Errorf("no credentials store is available")
 	}
-	return store.StoreForHost(host, credentials)
+	return store.StoreForHost(ctx, host, credentials)
 }
 
 // ForgetForHost passes the given arguments to the same operation on the
 // first CredentialsSource in the receiver.
-func (c Credentials) ForgetForHost(host svchost.Hostname) error {
+func (c Credentials) ForgetForHost(ctx context.Context, host svchost.Hostname) error {
 	store := c.Store()
 	if store == nil {
 		return fmt.Errorf("no credentials store is available")
 	}
-	return store.ForgetForHost(host)
+	return store.ForgetForHost(ctx, host)
 }
 
 // Store returns a [CredentialsStore] for this set of credentials if and only

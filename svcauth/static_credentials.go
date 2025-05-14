@@ -5,6 +5,8 @@
 package svcauth
 
 import (
+	"context"
+
 	"github.com/opentofu/svchost"
 )
 
@@ -17,6 +19,6 @@ func StaticCredentialsSource(creds map[svchost.Hostname]HostCredentials) Credent
 type staticCredentialsSource map[svchost.Hostname]HostCredentials
 
 // ForHost implements [CredentialsSource].
-func (s staticCredentialsSource) ForHost(host svchost.Hostname) (HostCredentials, error) {
+func (s staticCredentialsSource) ForHost(_ context.Context, host svchost.Hostname) (HostCredentials, error) {
 	return s[host], nil
 }

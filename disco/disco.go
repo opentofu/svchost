@@ -10,6 +10,7 @@
 package disco
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -129,7 +130,7 @@ func (d *Disco) CredentialsSource() svcauth.CredentialsSource {
 
 // CredentialsForHost returns a non-nil HostCredentials if the embedded source has
 // credentials available for the host, or host alias, and a nil HostCredentials if it does not.
-func (d *Disco) CredentialsForHost(hostname svchost.Hostname) (svcauth.HostCredentials, error) {
+func (d *Disco) CredentialsForHost(ctx context.Context, hostname svchost.Hostname) (svcauth.HostCredentials, error) {
 	if d.credsSrc == nil {
 		return nil, nil
 	}
@@ -138,7 +139,7 @@ func (d *Disco) CredentialsForHost(hostname svchost.Hostname) (svcauth.HostCrede
 	if aliasedHost, aliasExists := d.aliases[hostname]; aliasExists {
 		hostname = aliasedHost
 	}
-	return d.credsSrc.ForHost(hostname)
+	return d.credsSrc.ForHost(ctx, hostname)
 }
 
 // ForceHostServices provides a pre-defined set of services for a given
@@ -187,7 +188,7 @@ func (d *Disco) Alias(alias, target svchost.Hostname) {
 // regardless of whether that is due to that service specifically being absent
 // or due to the host not providing OpenTofu services at all, since we don't
 // wish to expose the detail of whole-host discovery to an end-user.
-func (d *Disco) Discover(hostname svchost.Hostname) (*Host, error) {
+func (d *Disco) Discover(ctx context.Context, hostname svchost.Hostname) (*Host, error) {
 	// In this method we use d.mu locking only to avoid corrupting d.hostCache
 	// by concurrent writes, and not to prevent concurrent discovery requests.
 	// If two clients concurrently request the same hostname then we could
@@ -204,7 +205,7 @@ func (d *Disco) Discover(hostname svchost.Hostname) (*Host, error) {
 	}
 	d.mu.Unlock()
 
-	host, err := d.discover(hostname)
+	host, err := d.discover(ctx, hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -217,8 +218,8 @@ func (d *Disco) Discover(hostname svchost.Hostname) (*Host, error) {
 
 // DiscoverServiceURL is a convenience wrapper for discovery on a given
 // hostname and then looking up a particular service in the result.
-func (d *Disco) DiscoverServiceURL(hostname svchost.Hostname, serviceID string) (*url.URL, error) {
-	host, err := d.Discover(hostname)
+func (d *Disco) DiscoverServiceURL(ctx context.Context, hostname svchost.Hostname, serviceID string) (*url.URL, error) {
+	host, err := d.Discover(ctx, hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +232,7 @@ func (d *Disco) DiscoverServiceURL(hostname svchost.Hostname, serviceID string) 
 // This must be called _without_ d.mu locked. d.mu is there only to protect
 // the integrity of our internal maps, and not to prevent multiple concurrent
 // service discovery lookups even for the same hostname.
-func (d *Disco) discover(hostname svchost.Hostname) (*Host, error) {
+func (d *Disco) discover(ctx context.Context, hostname svchost.Hostname) (*Host, error) {
 	d.mu.Lock()
 	if aliasedHost, aliasExists := d.aliases[hostname]; aliasExists {
 		hostname = aliasedHost
@@ -245,14 +246,14 @@ func (d *Disco) discover(hostname svchost.Hostname) (*Host, error) {
 	}
 
 	client := d.httpClient
-	req := &http.Request{
-		Header: make(http.Header),
-		Method: "GET",
-		URL:    discoURL,
+	req, err := http.NewRequestWithContext(ctx, "GET", discoURL.String(), nil)
+	if err != nil {
+		// Should not get in here because everything about the request args is under our control.
+		return nil, fmt.Errorf("invalid discovery request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 
-	creds, err := d.CredentialsForHost(hostname)
+	creds, err := d.CredentialsForHost(ctx, hostname)
 	if err != nil {
 		// If we fail to obtain credentials then we just treat it as anonymous
 		creds = nil

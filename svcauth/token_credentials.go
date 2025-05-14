@@ -5,7 +5,6 @@
 package svcauth
 
 import (
-	"crypto/tls"
 	"net/http"
 
 	"github.com/zclconf/go-cty/cty"
@@ -37,13 +36,6 @@ func (tc HostCredentialsToken) PrepareRequest(req *http.Request) {
 // Token returns the authentication token.
 func (tc HostCredentialsToken) Token() string {
 	return string(tc)
-}
-
-// ClientCertificate implements HostCredentials by always returning an
-// empty certificate, since [HostCredentialsToken] cannot represent a
-// TLS client certificate.
-func (tc HostCredentialsToken) ClientCertificate(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-	return &tls.Certificate{}, nil
 }
 
 // ToStore returns a credentials object with a single attribute "token" whose
