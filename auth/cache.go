@@ -1,18 +1,20 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package auth
 
 import (
 	"sync"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	svchost "github.com/opentofu/svchost"
 )
 
 // CachingCredentialsSource creates a new credentials source that wraps another
 // and caches its results in memory, on a per-hostname basis.
 //
 // No means is provided for expiration of cached credentials, so a caching
-// credentials source should have a limited lifetime (one Terraform operation,
+// credentials source should have a limited lifetime (one OpenTofu operation,
 // for example) to ensure that time-limited credentials don't expire before
 // their cache entries do.
 func CachingCredentialsSource(source CredentialsSource) CredentialsSource {

@@ -1,6 +1,8 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
-// Package disco handles Terraform's remote service discovery protocol.
+// Package disco handles OpenTofu's remote service discovery protocol.
 //
 // This protocol allows mapping from a service hostname, as produced by the
 // svchost package, to a set of services supported by that host and the
@@ -19,12 +21,14 @@ import (
 	"sync"
 	"time"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
+	svchost "github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/auth"
 )
 
 const (
-	// Fixed path to the discovery manifest.
+	// Fixed path to the discovery manifest. This is an IANA-registered name
+	// established by OpenTofu's predecessor, which OpenTofu uses so that
+	// vendors can support both products simultaneously.
 	discoPath = "/.well-known/terraform.json"
 
 	// Arbitrary-but-small number to prevent runaway redirect loops.
@@ -167,11 +171,11 @@ func (d *Disco) Alias(alias, target svchost.Hostname) {
 // already have been validated and prepared with svchost.ForComparison) and
 // returns an object describing the services available at that host.
 //
-// If a given hostname supports no Terraform services at all, a non-nil but
+// If a given hostname supports no OpenTofu services at all, a non-nil but
 // empty Host object is returned. When giving feedback to the end user about
 // such situations, we say "host <name> does not provide a <service> service",
 // regardless of whether that is due to that service specifically being absent
-// or due to the host not providing Terraform services at all, since we don't
+// or due to the host not providing OpenTofu services at all, since we don't
 // wish to expose the detail of whole-host discovery to an end-user.
 func (d *Disco) Discover(hostname svchost.Hostname) (*Host, error) {
 	// In this method we use d.mu locking only to avoid corrupting d.hostCache

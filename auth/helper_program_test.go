@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package auth
 
@@ -7,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	svchost "github.com/opentofu/svchost"
 )
 
 func TestHelperProgramCredentialsSource(t *testing.T) {

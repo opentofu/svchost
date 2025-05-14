@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package auth
 
@@ -41,8 +43,8 @@ func HostCredentialsFromObject(obj cty.Value) HostCredentials {
 		return nil
 	}
 	if !cty.String.Equals(tokenV.Type()) {
-		// Weird, but maybe some future Terraform version accepts an object
-		// here for some reason, so we'll be resilient.
+		// Weird, but maybe some future version accepts an object here for some
+		// reason, so we'll tolerate that for forward-compatibility.
 		return nil
 	}
 

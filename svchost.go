@@ -1,14 +1,16 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 // Package svchost deals with the representations of the so-called "friendly
-// hostnames" that we use to represent systems that provide Terraform-native
+// hostnames" that we use to represent systems that provide OpenTofu-native
 // remote services, such as module registry, remote operations, etc.
 //
 // Friendly hostnames are specified such that, as much as possible, they
 // are consistent with how web browsers think of hostnames, so that users
 // can bring their intuitions about how hostnames behave when they access
-// a Terraform Enterprise instance's web UI (or indeed any other website)
-// and have this behave in a similar way.
+// the website of the vendor that is providing a service, and have this
+// library treat the same hostname in a similar way.
 package svchost
 
 import (
@@ -126,7 +128,7 @@ func ForComparison(given string) (Hostname, error) {
 	// First we'll apply our additional constraint that Punycode must not
 	// be given directly by the user. This is not an IDN specification
 	// requirement, but we prohibit it to force users to use human-readable
-	// hostname forms within Terraform configuration.
+	// hostname forms within OpenTofu configuration.
 	labels := labelIter{orig: given}
 	for ; !labels.done(); labels.next() {
 		label := labels.label()

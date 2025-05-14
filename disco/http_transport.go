@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package disco
 
@@ -8,7 +10,7 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 )
 
-const DefaultUserAgent = "terraform-svchost/1.0"
+const DefaultUserAgent = "opentofu-svchost/1.0"
 
 func defaultHTTPTransport() http.RoundTripper {
 	t := cleanhttp.DefaultPooledTransport()

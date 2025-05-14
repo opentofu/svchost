@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 // Package auth contains types and functions to manage authentication
 // credentials for service hosts.
@@ -10,7 +12,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 )
 
 // Credentials is a list of CredentialsSource objects that can be tried in

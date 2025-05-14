@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package auth
 
@@ -9,7 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	svchost "github.com/opentofu/svchost"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 

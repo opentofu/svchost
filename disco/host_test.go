@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package disco
 
@@ -393,12 +395,12 @@ func TestVersionConstrains(t *testing.T) {
 
 		expected := &Constraints{
 			Service: "thingy.v1",
-			Product: "terraform",
+			Product: "opentofu",
 			Minimum: "0.11.8",
 			Maximum: "0.12.0",
 		}
 
-		actual, err := host.VersionConstraints("thingy.v1", "terraform")
+		actual, err := host.VersionConstraints("thingy.v1", "opentofu")
 		if err != nil {
 			t.Fatalf("unexpected version constraints error: %s", err)
 		}
@@ -441,12 +443,12 @@ func TestVersionConstrains(t *testing.T) {
 
 		expected := &Constraints{
 			Service: "thingy.v3",
-			Product: "terraform",
+			Product: "opentofu",
 			Minimum: "0.11.8",
 			Maximum: "0.12.0",
 		}
 
-		actual, err := host.VersionConstraints("thingy.v1", "terraform")
+		actual, err := host.VersionConstraints("thingy.v1", "opentofu")
 		if err != nil {
 			t.Fatalf("unexpected version constraints error: %s", err)
 		}
@@ -466,7 +468,7 @@ func TestVersionConstrains(t *testing.T) {
 			},
 		}
 
-		_, err := host.VersionConstraints("thingy.v1", "terraform")
+		_, err := host.VersionConstraints("thingy.v1", "opentofu")
 		if _, ok := err.(*ErrServiceNotProvided); !ok {
 			t.Fatalf("expected service not provided error, got: %v", err)
 		}
@@ -486,7 +488,7 @@ func TestVersionConstrains(t *testing.T) {
 			},
 		}
 
-		_, err := host.VersionConstraints("thingy.v1", "terraform")
+		_, err := host.VersionConstraints("thingy.v1", "opentofu")
 		if _, ok := err.(*ErrNoVersionConstraints); !ok {
 			t.Fatalf("expected service not provided error, got: %v", err)
 		}
@@ -508,7 +510,7 @@ func TestVersionConstrains(t *testing.T) {
 			},
 		}
 
-		_, err := host.VersionConstraints("thingy.v1", "terraform")
+		_, err := host.VersionConstraints("thingy.v1", "opentofu")
 		if _, ok := err.(*ErrNoVersionConstraints); !ok {
 			t.Fatalf("expected service not provided error, got: %v", err)
 		}
@@ -524,7 +526,7 @@ func TestVersionConstrains(t *testing.T) {
 			},
 		}
 
-		_, err := host.VersionConstraints("thingy.v1", "terraform")
+		_, err := host.VersionConstraints("thingy.v1", "opentofu")
 		if _, ok := err.(*ErrServiceNotProvided); !ok {
 			t.Fatalf("expected service not provided error, got: %v", err)
 		}
@@ -541,7 +543,7 @@ func TestVersionConstrains(t *testing.T) {
 			},
 		}
 
-		_, err := host.VersionConstraints("thingy.v1", "terraform")
+		_, err := host.VersionConstraints("thingy.v1", "opentofu")
 		if _, ok := err.(*ErrVersionNotSupported); !ok {
 			t.Fatalf("expected service not provided error, got: %v", err)
 		}

@@ -1,11 +1,13 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package auth
 
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 )
 
 // StaticCredentialsSource is a credentials source that retrieves credentials

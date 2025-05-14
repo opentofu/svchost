@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package disco
 
@@ -12,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
+	svchost "github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/auth"
 )
 
 func TestMain(m *testing.M) {

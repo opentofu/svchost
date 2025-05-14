@@ -1,4 +1,6 @@
+// Copyright (c) The OpenTofu Authors
 // Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 package disco
 
@@ -34,11 +36,11 @@ type OAuthClient struct {
 
 	// MinPort and MaxPort define a range of TCP ports on localhost that this
 	// client is able to use as redirect_uri in an authorization request.
-	// Terraform will select a port from this range for the temporary HTTP
+	// OpenTofu will select a port from this range for the temporary HTTP
 	// server it creates to receive the authorization response, giving
 	// a URL like http://localhost:NNN/ where NNN is the selected port number.
 	//
-	// Terraform will reject any port numbers in this range less than 1024,
+	// OpenTofu will reject any port numbers in this range less than 1024,
 	// to respect the common convention (enforced on some operating systems)
 	// that lower port numbers are reserved for "privileged" services.
 	MinPort, MaxPort uint16
@@ -46,7 +48,7 @@ type OAuthClient struct {
 	// SupportedGrantTypes is a set of the grant types that the client may
 	// choose from. This includes an entry for each distinct type advertised
 	// by the server, even if a particular keyword is not supported by the
-	// current version of Terraform.
+	// current version.
 	SupportedGrantTypes OAuthGrantTypeSet
 
 	// Oauth2 does not require scopes for the authorization endpoint, however
@@ -80,7 +82,7 @@ func (c *OAuthClient) Endpoint() oauth2.Endpoint {
 //
 // Values of this type don't necessarily match with a known constant of the
 // type, because they may represent grant type keywords defined in a later
-// version of Terraform which this version doesn't yet know about.
+// version of this library which this version doesn't yet know about.
 type OAuthGrantType string
 
 const (
@@ -105,7 +107,7 @@ func (t OAuthGrantType) UsesAuthorizationEndpoint() bool {
 	default:
 		// We'll default to false so that we don't impose any requirements
 		// on any grant type keywords that might be defined for future
-		// versions of Terraform.
+		// versions of this library.
 		return false
 	}
 }
@@ -122,7 +124,7 @@ func (t OAuthGrantType) UsesTokenEndpoint() bool {
 	default:
 		// We'll default to false so that we don't impose any requirements
 		// on any grant type keywords that might be defined for future
-		// versions of Terraform.
+		// versions of this library.
 		return false
 	}
 }
