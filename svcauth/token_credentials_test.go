@@ -1,6 +1,6 @@
 // Copyright (c) HashiCorp, Inc.
 
-package auth
+package svcauth
 
 import (
 	"net/http"

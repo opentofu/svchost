@@ -14,7 +14,7 @@ import (
 	"time"
 
 	svchost "github.com/opentofu/svchost"
-	"github.com/opentofu/svchost/auth"
+	"github.com/opentofu/svchost/svcauth"
 )
 
 // During tests we override the HTTP transport we use for discovery
@@ -130,8 +130,8 @@ func TestDiscover(t *testing.T) {
 		d := New(DiscoOptions{
 			HTTPClient: testClient,
 		})
-		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]auth.HostCredentials{
-			host: auth.HostCredentialsToken("abc123"),
+		d.SetCredentialsSource(svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+			host: svcauth.HostCredentialsToken("abc123"),
 		}))
 		d.Discover(host)
 		if got, want := authHeaderText, "Bearer abc123"; got != want {
@@ -407,8 +407,8 @@ func TestDiscover(t *testing.T) {
 		d := New(DiscoOptions{
 			HTTPClient: testClient,
 		})
-		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]auth.HostCredentials{
-			target: auth.HostCredentialsToken("hunter2"),
+		d.SetCredentialsSource(svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+			target: svcauth.HostCredentialsToken("hunter2"),
 		}))
 		d.Alias(alias, target)
 

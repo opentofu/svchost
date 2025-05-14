@@ -21,7 +21,7 @@ import (
 	"time"
 
 	svchost "github.com/opentofu/svchost"
-	"github.com/opentofu/svchost/auth"
+	"github.com/opentofu/svchost/svcauth"
 )
 
 const (
@@ -51,7 +51,7 @@ type Disco struct {
 	hostCache map[svchost.Hostname]*Host
 	mu        sync.Mutex
 
-	credsSrc auth.CredentialsSource
+	credsSrc svcauth.CredentialsSource
 
 	httpClient *http.Client
 }
@@ -116,30 +116,30 @@ type DiscoOptions struct {
 	// requests.
 	//
 	// If this is nil then requests to all hosts are made anonymously.
-	Credentials auth.CredentialsSource
+	Credentials svcauth.CredentialsSource
 }
 
 // SetCredentialsSource changes the credentials source that will be used to
 // add credentials to outgoing discovery requests, where available.
-func (d *Disco) SetCredentialsSource(src auth.CredentialsSource) {
+func (d *Disco) SetCredentialsSource(src svcauth.CredentialsSource) {
 	d.credsSrc = src
 }
 
 // CredentialsSource returns the credentials source associated with the receiver,
 // or an empty credentials source if none is associated.
-func (d *Disco) CredentialsSource() auth.CredentialsSource {
+func (d *Disco) CredentialsSource() svcauth.CredentialsSource {
 	if d.credsSrc == nil {
 		// We'll return an empty one just to save the caller from having to
 		// protect against the nil case, since this interface already allows
 		// for the possibility of there being no credentials at all.
-		return auth.NoCredentials
+		return svcauth.NoCredentials
 	}
 	return d.credsSrc
 }
 
 // CredentialsForHost returns a non-nil HostCredentials if the embedded source has
 // credentials available for the host, or host alias, and a nil HostCredentials if it does not.
-func (d *Disco) CredentialsForHost(hostname svchost.Hostname) (auth.HostCredentials, error) {
+func (d *Disco) CredentialsForHost(hostname svchost.Hostname) (svcauth.HostCredentials, error) {
 	if d.credsSrc == nil {
 		return nil, nil
 	}
