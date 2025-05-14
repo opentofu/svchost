@@ -419,7 +419,12 @@ func TestDiscover(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected credentials error: %s", err)
 		}
-		if aliasCreds.Token() != "hunter2" {
+		req, err := http.NewRequest("GET", "/fake", nil)
+		if err != nil {
+			t.Fatalf("can't build fake HTTP request: %s", err)
+		}
+		aliasCreds.PrepareRequest(req)
+		if req.Header.Get("Authorization") != "Bearer hunter2" {
 			t.Fatalf("found no credentials for alias")
 		}
 

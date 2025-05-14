@@ -5,6 +5,7 @@
 package auth
 
 import (
+	"fmt"
 	"sync"
 
 	svchost "github.com/opentofu/svchost"
@@ -17,6 +18,10 @@ import (
 // credentials source should have a limited lifetime (one OpenTofu operation,
 // for example) to ensure that time-limited credentials don't expire before
 // their cache entries do.
+//
+// The result also implements [CredentialsStore] by forwarding to the inner
+// source, but the store and forget methods will fail with an error if the
+// wrapped source does not also implement that interface.
 func CachingCredentialsSource(source CredentialsSource) CredentialsSource {
 	return &cachingCredentialsSource{
 		source: source,
@@ -56,14 +61,19 @@ func (s *cachingCredentialsSource) ForHost(host svchost.Hostname) (HostCredentia
 	return result, nil
 }
 
-func (s *cachingCredentialsSource) StoreForHost(host svchost.Hostname, credentials HostCredentialsWritable) error {
+func (s *cachingCredentialsSource) StoreForHost(host svchost.Hostname, credentials NewHostCredentials) error {
 	// We'll delete the cache entry even if the store fails, since that just
 	// means that the next read will go to the real store and get a chance to
 	// see which object (old or new) is actually present.
 	s.mu.Lock()
 	delete(s.cache, host)
 	s.mu.Unlock()
-	return s.source.StoreForHost(host, credentials)
+
+	store, ok := s.source.(CredentialsStore)
+	if !ok {
+		return fmt.Errorf("no credentials store is available")
+	}
+	return store.StoreForHost(host, credentials)
 }
 
 func (s *cachingCredentialsSource) ForgetForHost(host svchost.Hostname) error {
@@ -73,5 +83,10 @@ func (s *cachingCredentialsSource) ForgetForHost(host svchost.Hostname) error {
 	s.mu.Lock()
 	delete(s.cache, host)
 	s.mu.Unlock()
-	return s.source.ForgetForHost(host)
+
+	store, ok := s.source.(CredentialsStore)
+	if !ok {
+		return fmt.Errorf("no credentials store is available")
+	}
+	return store.ForgetForHost(host)
 }

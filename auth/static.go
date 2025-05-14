@@ -5,8 +5,6 @@
 package auth
 
 import (
-	"fmt"
-
 	"github.com/opentofu/svchost"
 )
 
@@ -15,11 +13,11 @@ import (
 // present in the map.
 //
 // The caller should not modify the given map after passing it to this function.
-func StaticCredentialsSource(creds map[svchost.Hostname]map[string]interface{}) CredentialsSource {
+func StaticCredentialsSource(creds map[svchost.Hostname]map[string]any) CredentialsSource {
 	return staticCredentialsSource(creds)
 }
 
-type staticCredentialsSource map[svchost.Hostname]map[string]interface{}
+type staticCredentialsSource map[svchost.Hostname]map[string]any
 
 func (s staticCredentialsSource) ForHost(host svchost.Hostname) (HostCredentials, error) {
 	if s == nil {
@@ -31,12 +29,4 @@ func (s staticCredentialsSource) ForHost(host svchost.Hostname) (HostCredentials
 	}
 
 	return nil, nil
-}
-
-func (s staticCredentialsSource) StoreForHost(host svchost.Hostname, credentials HostCredentialsWritable) error {
-	return fmt.Errorf("can't store new credentials in a static credentials source")
-}
-
-func (s staticCredentialsSource) ForgetForHost(host svchost.Hostname) error {
-	return fmt.Errorf("can't discard credentials from a static credentials source")
 }

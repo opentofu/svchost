@@ -7,6 +7,7 @@
 package auth
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -15,15 +16,17 @@ import (
 	"github.com/opentofu/svchost"
 )
 
-// Credentials is a list of CredentialsSource objects that can be tried in
+// Credentials is a list of [CredentialsSource] objects that can be tried in
 // turn until one returns credentials for a host, or one returns an error.
 //
 // A Credentials is itself a CredentialsSource, wrapping its members.
 // In principle one CredentialsSource can be nested inside another, though
 // there is no good reason to do so.
 //
-// The write operations on a Credentials are tried only on the first object,
-// under the assumption that it is the primary store.
+// Credentials also implements [CredentialsStore] by forwarding requests to
+// the first of the given credentials sources. If there are no credentials
+// sources or if the first one does not implement [CredentialsStore] then
+// the store and forget operations fail with an error.
 type Credentials []CredentialsSource
 
 // NoCredentials is an empty CredentialsSource that always returns nil
@@ -43,14 +46,20 @@ type CredentialsSource interface {
 	// If an error is returned, progress through a list of CredentialsSources
 	// is halted and the error is returned to the user.
 	ForHost(host svchost.Hostname) (HostCredentials, error)
+}
 
-	// StoreForHost takes a HostCredentialsWritable and saves it as the
+// CredentialsStore is an extension of [CredentialsSource] that also allows
+// saving new credentials and discarding previously-stored credentials.
+type CredentialsStore interface {
+	CredentialsSource
+
+	// StoreForHost takes a [NewHostCredentials] and saves its content as the
 	// credentials for the given host.
 	//
 	// If credentials are already stored for the given host, it will try to
 	// replace those credentials but may produce an error if such replacement
 	// is not possible.
-	StoreForHost(host svchost.Hostname, credentials HostCredentialsWritable) error
+	StoreForHost(host svchost.Hostname, credentials NewHostCredentials) error
 
 	// ForgetForHost discards any stored credentials for the given host. It
 	// does nothing and returns successfully if no credentials are saved
@@ -63,19 +72,34 @@ type CredentialsSource interface {
 type HostCredentials interface {
 	// PrepareRequest modifies the given request in-place to apply the
 	// receiving credentials. The usual behavior of this method is to
-	// add some sort of Authorization header to the request.
+	// add some sort of Authorization header to the request, but this
+	// is flexible to allow for more esoteric schemes such as
+	// "presigned URLs" where a signature is added to the URL query string.
+	//
+	// Implementers must not abuse this by modifying the request in ways
+	// that are unrelated to authentication.
 	PrepareRequest(req *http.Request)
 
-	// Token returns the authentication token.
-	Token() string
+	// ClientCertificate can be called when making a request to a TLS (https)
+	// server and the server requests a certificate to authenticate
+	// the client.
+	//
+	// If this returns an error then the TLS handshake must be aborted
+	// and that error returned. Otherwise this must return a non-nil
+	// [*tls.Certificate]. Returning an empty certificate is allowed, in
+	// which case no certificate is to be sent but the server may not
+	// accept that and so may abort the TLS handshake itself.
+	//
+	// This function may be called multiple times for the same connection
+	// if renegotiation occurs or if the connection is using TLS 1.3.
+	//
+	// The returned certificate must not be modified.
+	ClientCertificate(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 }
 
-// HostCredentialsWritable is an extension of HostCredentials for credentials
-// objects that can be serialized as a JSON-compatible object value for
-// storage.
-type HostCredentialsWritable interface {
-	HostCredentials
-
+// NewHostCredentials represents new credentials that could be saved in
+// a [CredentialsStore].
+type NewHostCredentials interface {
 	// ToStore returns a cty.Value, always of an object type,
 	// representing data that can be serialized to represent this object
 	// in persistent storage.
@@ -102,21 +126,36 @@ func (c Credentials) ForHost(host svchost.Hostname) (HostCredentials, error) {
 }
 
 // StoreForHost passes the given arguments to the same operation on the
-// first CredentialsSource in the receiver.
-func (c Credentials) StoreForHost(host svchost.Hostname, credentials HostCredentialsWritable) error {
-	if len(c) == 0 {
+// first CredentialsSource in the receiver, or returns an error if the
+// first source does not implement [CredentialsStore].
+func (c Credentials) StoreForHost(host svchost.Hostname, credentials NewHostCredentials) error {
+	store := c.Store()
+	if store == nil {
 		return fmt.Errorf("no credentials store is available")
 	}
-
-	return c[0].StoreForHost(host, credentials)
+	return store.StoreForHost(host, credentials)
 }
 
 // ForgetForHost passes the given arguments to the same operation on the
 // first CredentialsSource in the receiver.
 func (c Credentials) ForgetForHost(host svchost.Hostname) error {
-	if len(c) == 0 {
+	store := c.Store()
+	if store == nil {
 		return fmt.Errorf("no credentials store is available")
 	}
+	return store.ForgetForHost(host)
+}
 
-	return c[0].ForgetForHost(host)
+// Store returns a [CredentialsStore] for this set of credentials if and only
+// if it contains at least one source and the first source implements
+// [CredentialsStore].
+func (c Credentials) Store() CredentialsStore {
+	if len(c) == 0 {
+		return nil
+	}
+	store, ok := c[0].(CredentialsStore)
+	if !ok {
+		return nil
+	}
+	return store
 }

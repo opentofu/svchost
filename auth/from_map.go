@@ -15,7 +15,7 @@ import (
 //
 // This function ignores map keys it is unfamiliar with, to allow for future
 // expansion of the credentials map format for new credential types.
-func HostCredentialsFromMap(m map[string]interface{}) HostCredentials {
+func HostCredentialsFromMap(m map[string]any) HostCredentials {
 	if m == nil {
 		return nil
 	}

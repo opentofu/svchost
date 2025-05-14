@@ -32,7 +32,7 @@ type helperProgramCredentialsSource struct {
 // with the given arguments along with two additional arguments added to the
 // end of the list: the literal string "get", followed by the requested
 // hostname in ASCII compatibility form (punycode form).
-func HelperProgramCredentialsSource(executable string, args ...string) CredentialsSource {
+func HelperProgramCredentialsSource(executable string, args ...string) CredentialsStore {
 	if !filepath.IsAbs(executable) {
 		panic("NewCredentialsSourceHelperProgram requires absolute path to executable")
 	}
@@ -83,7 +83,7 @@ func (s *helperProgramCredentialsSource) ForHost(host svchost.Hostname) (HostCre
 	return HostCredentialsFromMap(m), nil
 }
 
-func (s *helperProgramCredentialsSource) StoreForHost(host svchost.Hostname, credentials HostCredentialsWritable) error {
+func (s *helperProgramCredentialsSource) StoreForHost(host svchost.Hostname, credentials NewHostCredentials) error {
 	args := make([]string, len(s.args), len(s.args)+2)
 	copy(args, s.args)
 	args = append(args, "store", string(host))
