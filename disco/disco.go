@@ -109,7 +109,7 @@ func (d *Disco) CredentialsSource() auth.CredentialsSource {
 		// We'll return an empty one just to save the caller from having to
 		// protect against the nil case, since this interface already allows
 		// for the possibility of there being no credentials at all.
-		return auth.StaticCredentialsSource(nil)
+		return auth.NoCredentials
 	}
 	return d.credsSrc
 }

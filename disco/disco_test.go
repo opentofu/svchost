@@ -127,10 +127,8 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New()
-		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-			host: {
-				"token": "abc123",
-			},
+		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]auth.HostCredentials{
+			host: auth.HostCredentialsToken("abc123"),
 		}))
 		d.Discover(host)
 		if got, want := authHeaderText, "Bearer abc123"; got != want {
@@ -391,12 +389,9 @@ func TestDiscover(t *testing.T) {
 		}
 
 		d := New()
-		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]map[string]any{
-			target: {
-				"token": "hunter2",
-			},
+		d.SetCredentialsSource(auth.StaticCredentialsSource(map[svchost.Hostname]auth.HostCredentials{
+			target: auth.HostCredentialsToken("hunter2"),
 		}))
-
 		d.Alias(alias, target)
 
 		discovered, err := d.Discover(alias)
