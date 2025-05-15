@@ -201,6 +201,8 @@ func (d *Disco) Discover(ctx context.Context, hostname svchost.Hostname) (*Host,
 	d.mu.Lock()
 	if host, cached := d.hostCache[hostname]; cached {
 		d.mu.Unlock()
+		trace := discoTraceFromContext(ctx)
+		trace.discoveryHostCached(ctx, hostname)
 		return host, nil
 	}
 	d.mu.Unlock()
@@ -232,12 +234,22 @@ func (d *Disco) DiscoverServiceURL(ctx context.Context, hostname svchost.Hostnam
 // This must be called _without_ d.mu locked. d.mu is there only to protect
 // the integrity of our internal maps, and not to prevent multiple concurrent
 // service discovery lookups even for the same hostname.
-func (d *Disco) discover(ctx context.Context, hostname svchost.Hostname) (*Host, error) {
+func (d *Disco) discover(ctx context.Context, hostname svchost.Hostname) (host *Host, err error) {
 	d.mu.Lock()
 	if aliasedHost, aliasExists := d.aliases[hostname]; aliasExists {
 		hostname = aliasedHost
 	}
 	d.mu.Unlock()
+
+	trace := discoTraceFromContext(ctx)
+	ctx = trace.discoveryStart(ctx, hostname)
+	defer func(ctx context.Context) {
+		if err == nil {
+			trace.discoverySuccess(ctx, hostname)
+		} else {
+			trace.discoveryFailure(ctx, hostname, err)
+		}
+	}(ctx)
 
 	discoURL := &url.URL{
 		Scheme: "https",
@@ -269,7 +281,7 @@ func (d *Disco) discover(ctx context.Context, hostname svchost.Hostname) (*Host,
 	}
 	defer resp.Body.Close()
 
-	host := &Host{
+	host = &Host{
 		// Use the discovery URL from resp.Request in
 		// case the client followed any redirects.
 		discoURL: resp.Request.URL,
