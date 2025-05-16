@@ -5,6 +5,7 @@
 package disco
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -265,12 +266,35 @@ func parseServiceID(id string) (string, uint64, error) {
 		return "", 0, fmt.Errorf("invalid service ID format (i.e. service.vN): %s", id)
 	}
 
+	const errMsg = "invalid service version: must be \"v\" followed by an integer major version number"
 	if !strings.HasPrefix(parts[1], "v") {
-		return "", 0, fmt.Errorf("invalid service version: must be \"v\" followed by an integer major version number")
+		return "", 0, errors.New(errMsg)
 	}
+
+	// In OpenTofu's predecessor there was one specific service type that
+	// accepted a minor version component in addition to the major version,
+	// which was then used only in the "remote" backend to interact with
+	// the API of the vendor's commercial TACOS product. That backend is
+	// effectively just a legacy older version of the "cloud" block, in
+	// practice all of the minor versions are set to exactly the same
+	// endpoint anyway, and we don't intend to support this for any other
+	// service type because minor versions are better handled via
+	// fine-grain protocol-specific negotiation rather than at the service
+	// discovery level, so here we just support it enough to tolerate and
+	// ignore the minor version suffix, treating this as a legacy quirk
+	// that we handle only enough to avoid generating spurious errors.
+	if parts[0] == "tfe" {
+		// We just trim off everything after the first dot, so that
+		// e.g. "tfe.v2.1" is treated the same as "tfe.v2". This is
+		// technically more liberal than it needs to be, but sufficient
+		// for an edge-case that isn't particularly relevant to OpenTofu
+		// anyway.
+		parts[1], _, _ = strings.Cut(parts[1], ".")
+	}
+
 	parsedVersion, err := strconv.ParseUint(parts[1][1:], 10, 64)
 	if err != nil {
-		return "", 0, fmt.Errorf("invalid service version: %v", err)
+		return "", 0, errors.New(errMsg)
 	}
 
 	return parts[0], parsedVersion, nil

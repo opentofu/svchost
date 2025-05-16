@@ -29,6 +29,7 @@ func TestHostServiceURL(t *testing.T) {
 			"querystring.v1":      "https://example.net/baz?foo=bar",
 			"nothttp.v1":          "ftp://127.0.0.1/pub/",
 			"invalid.v1":          "***not A URL at all!:/<@@@@>***",
+			"tfe.v2.1":            "/legacy-quirk",
 		},
 	}
 
@@ -44,6 +45,8 @@ func TestHostServiceURL(t *testing.T) {
 		{"protorelative.v1", "https://example.net/", ""},
 		{"withfragment.v1", "http://example.org/", ""},
 		{"querystring.v1", "https://example.net/baz?foo=bar", ""},
+		{"tfe.v2.1", "https://example.com/legacy-quirk", ""},
+		{"anything-but-tfe.v2.1", "<nil>", `invalid service version: must be "v" followed by an integer major version number`},
 		{"nothttp.v1", "<nil>", "unsupported scheme"},
 		{"invalid.v1", "<nil>", "failed to parse service URL"},
 	}
