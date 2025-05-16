@@ -30,6 +30,24 @@ func CachingCredentialsSource(source CredentialsSource) CredentialsSource {
 	}
 }
 
+// CachingCredentialsStore is really just an alias for
+// [CachingCredentialsSource] that provides a statically-checkable guarantee
+// that the inner object being wrapped is a [CredentialsStore] rather than
+// just a [CredentialsSource], and so the store-specific methods will
+// delegate to the given store instead of immediately returning an error.
+//
+// This is functionally equivalent to calling [CachingCredentialsSource]
+// with the same argument and then type-asserting the result to
+// [CredentialsStore], but this helper ensures that the "store-ness" of
+// the implementation is checked at compile time rather than at runtime.
+func CachingCredentialsStore(store CredentialsStore) CredentialsStore {
+	// The following always succeeds because cachingCredentialsSource
+	// statically implements both CredentialsSource and CredentialsStore,
+	// and just has its CredentialsStore methods fail dynamically when
+	// the inner source isn't a store.
+	return CachingCredentialsSource(store).(CredentialsStore)
+}
+
 type cachingCredentialsSource struct {
 	source CredentialsSource
 	cache  map[svchost.Hostname]HostCredentials
