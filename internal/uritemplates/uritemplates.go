@@ -11,4 +11,10 @@
 //
 // If those needs increase in future then the scope of this package might increase to
 // follow, or we might adopt an external dependency implementing this specification instead.
+//
+// The API of this package is currently experimental and primarily intended for
+// use in OpenTofu CLI itself, rather than external consumption. We may make
+// breaking changes to the API before blessing this module with a stable version
+// number, so third-party callers should be prepared to make adjustments if they
+// choose to use this library before then.
 package uritemplates

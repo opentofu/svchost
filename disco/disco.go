@@ -7,6 +7,12 @@
 // This protocol allows mapping from a service hostname, as produced by the
 // svchost package, to a set of services supported by that host and the
 // endpoint information for each supported service.
+//
+// The API of this package is currently experimental and primarily intended for
+// use in OpenTofu CLI itself, rather than external consumption. We may make
+// breaking changes to the API before blessing this module with a stable version
+// number, so third-party callers should be prepared to make adjustments if they
+// choose to use this library before then.
 package disco
 
 import (

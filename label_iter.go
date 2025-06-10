@@ -1,4 +1,7 @@
+// Copyright (c) 2017 The Go Authors.
 // Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
 
 package svchost
 
